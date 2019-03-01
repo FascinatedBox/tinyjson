@@ -54,7 +54,7 @@ enum Json {
 class JsonError(msg: String) < Exception(msg) {
     private var @msg = msg
 
-    public define printError {print("JsonError: {1}.".format(@msg))}
+    public define printError {print("JsonError: {0}.".format(@msg))}
 }
 
 # find the json value associated with the key 'key' in a
