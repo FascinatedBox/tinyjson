@@ -1,0 +1,717 @@
+#[
+    MIT License
+
+    Copyright (c) 2019 Elias Flores
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE.
+
+    json.lily
+
+    Defines a an abstract tree structure for holding Json values,
+    a lexer for scanning a source string, a parser to parse
+    tokens into the tree structure, and some convenience functions
+]#
+
+import math
+
+#[
+    ------------------------------------------
+                Json Values
+    -------------------------------------------
+]#
+
+enum Json {
+    _Null,
+    _Bool(Boolean),
+    _Int(Integer),
+    _Float(Double),
+    _String(String),
+    _Assoc(Hash[String, Json]),
+    _List(List[Json])
+}
+
+#[
+    JsonError Exception class
+    defines an exception to throw when a json function
+    encounters an error
+]#
+class JsonError(msg: String) < Exception(msg) {
+    private var @msg = msg
+
+    public define printError {print("JsonError: {1}.".format(@msg))}
+}
+
+# find the json value associated with the key 'key' in a
+# json value
+define member(j: Json, key: String): Json {
+    match j: {
+        case _Assoc(assocList):
+            return assocList[key]
+        else:
+    }
+    raise JsonError("Tried to find member: "++ key++" in non-assocation value.")
+}
+
+# convert a json list value into a lily list
+define toList(j: Json): List[Json] {
+    match j: {
+        case _List(list):
+            return list
+        else:
+    }
+    raise JsonError("Tried to make non-list value a list.")
+
+}
+
+# convert a json integer into a lily integer
+define toInt(j: Json): Integer {
+    match j: {
+        case _Int(i):
+            return i
+        else:
+    }
+    raise JsonError("Tried to convert non-integer value into an int.")
+}
+
+# convert a json float into a lily double
+define toFloat(j: Json): Double {
+    match j: {
+        case _Float(f):
+            return f
+        else:
+    }
+    raise JsonError("Tried to convert non-float value into a Double.")
+}
+
+# convert a json string into a lily string
+define toString(j: Json): String {
+    match j: {
+        case _String(s):
+            return s
+        else:
+    }
+    raise JsonError("Tried to convert non-string value into a String.")
+}
+
+# convert a json string into a lily string
+define toBool(j: Json): Boolean {
+    match j: {
+        case _Bool(b):
+            return b
+        else:
+    }
+    raise JsonError("Tried to convert non-bool value into a Boolean.")
+}
+
+# convert a json value list into a lily list of integers
+define filterInt(j: List[Json]): List[Integer] {
+    return j.select(|val|
+        var ret = false
+        match val: {
+            case _Int(i): ret = true
+            else:
+        }
+        ret
+    ).map(|val|
+        var ret = 0
+        match val: {
+            case _Int(i): ret = i
+            else: # this should never happen because of select
+        }
+        ret
+    )
+}
+
+# convert a json value list into a lily list of doubles
+define filterFloat(j: List[Json]): List[Double] {
+    return j.select(|val|
+        var ret = false
+        match val: {
+            case _Float(f): ret = true
+            else:
+        }
+        ret
+    ).map(|val|
+        var ret = 0.0
+        match val: {
+            case _Float(f): ret = f
+            else: # this should never happen because of select
+        }
+        ret
+    )
+}
+
+# convert a json value list into a lily list of strings
+define filterString(j: List[Json]): List[String] {
+    return j.select(|val|
+        var ret = false
+        match val: {
+            case _String(s): ret = true
+            else:
+        }
+        ret
+    ).map(|val|
+        var ret = ""
+        match val: {
+            case _String(s): ret = s
+            else: # this should never happen because of select
+        }
+        ret
+    )
+}
+
+# convert a json value list into a lily list of booleans
+define filterBool(j: List[Json]): List[Boolean] {
+    return j.select(|val|
+        var ret = false
+        match val: {
+            case _Bool(b): ret = true
+            else:
+        }
+        ret
+    ).map(|val|
+        var ret = false
+        match val: {
+            case _Bool(b): ret = b
+            else: # this should never happen because of select
+        }
+        ret
+    )
+}
+
+# print out a json value
+define printJson(j: Json) {
+    match j: {
+        case _Null:
+            stdout.write("null")
+        case _Bool(b):
+            stdout.write("\""++b++"\"")
+        case _Int(i):
+            stdout.write(i)
+        case _Float(d):
+            stdout.write(d)
+        case _String(s):
+            stdout.write("\""++s++"\"")
+        case _Assoc(alist):
+            stdout.write("{")
+            var keys = alist.keys()
+            for i in 0...keys.size() - 1: {
+                stdout.write("\"{0}\": ".format(keys[i]))
+                printJson(alist[keys[i]])
+                if i < keys.size() - 1: {
+                    stdout.write(",")
+                }
+            }
+            stdout.write("}")
+        case _List(list):
+            stdout.write("[")
+            for i in 0...list.size() - 1: {
+                printJson(list[i])
+                if i < list.size() - 1: {
+                    stdout.write(",")
+                }
+            }
+            stdout.write("]")
+    }
+}
+
+#[
+    ------------------------------------------
+                        Lexer
+    -------------------------------------------
+]#
+
+#[
+    LexError Exception class
+    defines an exception to throw when the lexer
+    encounters an error
+]#
+class LexError(msg: String, line: Integer) < Exception(msg) {
+    private var @msg = msg
+    private var @line = line
+
+    public define printError {print("[line {0}] LexError: {1}.".format(@line, @msg))}
+}
+
+#[
+    TokenType Enum to specify the type of the token
+]#
+enum TokenType {
+    string(String), float(Double), int(Integer), bool(Boolean), lbrace, rbrace,
+    lbrack, rbrack, comma, colon, null, eof
+}
+
+#[
+    Token class to hold metadata of a token
+]#
+class Token(lexeme: String, type: TokenType, line: Integer) {
+    private var @lexeme = lexeme
+    private var @type = type
+    private var @line = line
+
+    public define getLexeme: String {return @lexeme}
+    public define getType: TokenType {return @type}
+    public define getLine: Integer {return @line}
+
+    public define printToken {
+        print("Token [{0}]\t [{1}]\t line {2}".format(@lexeme, @type, @line))
+    }
+}
+
+#[
+    The Lexer class iterates over a source string, adding tokens
+    as it identifies them. The lex() function returns a list of tokens
+    that were recognized in the source string. If the lexer encountered an error
+    then a call to hadError returns true.
+]#
+class Lexer(source: String) {
+    private var @source = source
+    private var @line = 1
+    private var @start = 0
+    private var @current = 0
+    private var @err = false
+
+    private var @toks: List[Token] = []
+
+    private var @keywords = [
+        "null" => null,
+        "true" => bool(true),
+        "false" => bool(false)
+    ]
+
+    # return the character at i
+    private define charAt(i: Integer): String {return @source.slice(i, i+1)}
+
+    # return true if @current has reached the end of the source string
+    private define isAtEnd: Boolean {
+        return @current == @source.size()
+    }
+
+    # advance the current position and return the character
+    # we were just looking at
+    private define advance: String {
+        if isAtEnd(): {return "end"}
+        var temp = charAt(@current)
+        @current += 1
+        return temp
+    }
+
+    # return the current character
+    private define peek: String {
+        return charAt(@current)
+    }
+
+    # conditional advance
+    private define matchChar(s: String): Boolean {
+        if !isAtEnd() && peek() == s: {
+            advance()
+            return true
+        }
+        return false
+    }
+
+    # add a token to the token list
+    private define addToken(lexeme: String, type: TokenType, line: Integer) {
+        @toks.push(Token(lexeme, type, line))
+    }
+
+    # match two pairs of quotes and capture everything inside
+    private define captureString {
+        # ignore "
+        matchChar("\"")
+
+        var tmpLine = @line
+
+        while peek() != "\"": {
+            advance()
+            if isAtEnd(): {
+                LexError("Unterminated string", tmpLine)
+            elif matchChar("\n"):
+                @line += 1
+            }
+        }
+
+        # consume the last "
+        matchChar("\"")
+
+        # strip the quotes
+        var s = @source.slice(@start+1, @current - 1)
+
+        # is it a keyword?
+        if @keywords.has_key(s): {
+            addToken(s, @keywords[s], @line)
+        else:
+            addToken(s, string(s), @line)
+        }
+    }
+
+    # determine if the number is an int or float and
+    # add it to the token list
+    private define captureNumber {
+        while peek().is_digit(): {
+            advance()
+        }
+
+        var ipart = @source.slice(@start, @current)
+
+        # determine if we're dealing with a float
+        if matchChar("."): {
+            var fstart = @current
+
+            # consume the floating point part of the number
+            while peek().is_digit(): {
+                advance()
+            }
+
+            var fpart = @source.slice(fstart, @current)
+
+            var itmp = 0
+            var ftmp = 0
+
+            # convert the strings into ints
+            match ipart.parse_i(): {
+                case Some(i):
+                    itmp = i
+                case None:
+                    raise LexError("Couldn't convert ipart into integer.", @line)
+            }
+            match fpart.parse_i(): {
+                case Some(i):
+                    ftmp = i
+                case None:
+                    raise LexError("Couldn't convert fpart into integer.", @line)
+            }
+
+            # the full value should be ipart + fpart * 10^(-sizeof fpart)
+            var full = itmp.to_d() + ftmp.to_d() * math.pow(10.0, -(@current - fstart).to_d())
+            addToken(@source.slice(@start, @current), float(full), @line)
+        else:
+            # it's just an int
+            match ipart.parse_i(): {
+                case Some(i):
+                    addToken(ipart, int(i), @line)
+                case None:
+                    raise LexError("Couldn't convert number into integer.", @line)
+            }
+        }
+    }
+
+    # grab the next identified token
+    private define nextToken {
+        var c = advance()
+
+        # check for one char tokens
+        if c == "[": { addToken(c, lbrack, @line)
+        elif c == "]": addToken(c, rbrack, @line)
+        elif c == "{": addToken(c, lbrace, @line)
+        elif c == "}": addToken(c, rbrace, @line)
+        elif c == ":": addToken(c, colon, @line)
+        elif c == ",": addToken(c, comma, @line)
+
+        # ignore whitespace
+        elif c == "\n": @line += 1
+        elif c == " ":
+        elif c == "\r":
+        elif c == "\t":
+
+        # capture a string
+        elif c == "\"":
+            captureString()
+
+        # capture a number
+        elif c.is_digit():
+            captureNumber()
+
+        # a character that we don't know how to deal with
+        else:
+            raise LexError("Unexpected character: '{0}'".format(c), @line)
+
+        }
+    }
+
+    # scan the source string for tokens
+    public define lex: List[Token] {
+        while !isAtEnd(): {
+            try: {
+                @start = @current
+                nextToken()
+            except LexError as le:
+                # set err to true and keep scanning to find more
+                # errors
+                @err = true
+                le.printError()
+            }
+        }
+
+        # append an eof token to the end of the list
+        @toks.push(Token("$", eof, @line))
+
+        return @toks
+    }
+
+    public define hadError: Boolean {
+        return @err
+    }
+}
+
+
+#[
+    ------------------------------------------
+                        Parser
+    -------------------------------------------
+]#
+
+#[
+    ParseError Exception class
+    defines an exception to throw when the parser
+    encounters an error
+]#
+class ParseError(msg: String, line: Integer) < Exception(msg) {
+    private var @msg = msg
+    private var @line = line
+
+    public define printError {print("[line {0}] ParseError: {1}.".format(@line, @msg))}
+}
+
+#[
+    Parser class
+
+    recursive descent implementation of a json parser
+]#
+class Parser(toklist: List[Token]) {
+    private var @tokenList = toklist
+    private var @current = 0
+
+    # Forward declare some functions
+    forward private define value: Json { ... }
+
+    # return the token we are currently looking at
+    private define peek: Token {
+        return @tokenList[@current]
+    }
+
+    # if we are currently looking at the token 'eof'
+    # then return true
+    private define isAtEnd: Boolean {
+        return peek().getType() == TokenType.eof
+    }
+
+    # return the previous token
+    private define previous: Token {
+        return @tokenList[@current - 1]
+    }
+
+    # advance to the next token
+    private define advance: Token {
+        if !isAtEnd(): {@current += 1}
+
+        return previous()
+    }
+
+    # match the current token against a given type
+    private define check(t: TokenType): Boolean {
+        if isAtEnd(): {
+            return false
+        }
+
+        return peek().getType() == t
+    }
+
+    # match a list of tokenTypes against the current one
+    # and advance if one of them matches
+    private define matchTokens(tokTypes: List[TokenType]): Boolean {
+        for i in 0...tokTypes.size() - 1: {
+            if check(tokTypes[i]): {
+                advance()
+                return true
+            }
+        }
+
+        return false
+    }
+
+    # a member of a json object
+    # "string": value
+    private define objmember: Hash[String, Json] {
+        var str = advance()
+
+        match str.getType(): {
+            case string(s):
+            if !matchTokens([colon]): {
+                raise ParseError("Exptected ':', got "++peek().getType(), peek().getLine())
+            }
+                return [s => value()]
+            else:
+                raise ParseError("Exptected string, got "++str.getType(), peek().getLine())
+        }
+    }
+
+    # a json object member list
+    # member (,member)*
+    private define memberList: Hash[String, Json] {
+        var ml: Hash[String, Json] = []
+
+        while !matchTokens([TokenType.rbrace]): {
+            # make sure the member list is terminated properly
+            if isAtEnd(): {
+                raise ParseError("Unterminated member list", peek().getLine())
+            }
+            # insert member into hash
+            ml = ml.merge(objmember())
+
+            # insert comma separated members into hash
+            while matchTokens([TokenType.comma]): {
+                ml = ml.merge(objmember())
+            }
+        }
+
+        return ml
+    }
+
+    # a json object
+    # { memberlist? }
+    private define object: Json {
+        var t = peek().getType()
+
+        if t == TokenType.rbrace: {
+            return Json._Assoc([])
+        else:
+            return Json._Assoc(memberList())
+        }
+    }
+
+    # a json value list
+    # [ value* ]
+    private define valList: Json {
+        var vl: List[Json] = []
+
+        # loop until we hit a ]
+        while !matchTokens([TokenType.rbrack]): {
+            if isAtEnd(): {
+                raise ParseError("Unterminated value list", peek().getLine())
+            }
+            # insert values into list
+            vl.push(value())
+
+            while matchTokens([TokenType.comma]): {
+                vl.push(value())
+            }
+        }
+
+        return Json._List(vl)
+    }
+
+    # a json value
+    private define value: Json {
+        var ret: Option[Json] = None
+
+        var t = advance()
+
+        match t.getType(): {
+            case string(s):
+                ret = Some(Json._String(s))
+            case int(i):
+                ret = Some(Json._Int(i))
+            case float(f):
+                ret = Some(Json._Float(f))
+            case lbrace:
+                ret = Some(object())
+            case lbrack:
+                ret = Some(valList())
+            case null:
+                ret = Some(Json._Null)
+            case bool(b):
+                ret = Some(Json._Bool(b))
+            else:
+                ret = None
+        }
+        
+        match ret:{
+            case None:
+                raise ParseError("Expected value, got "++t.getType(), t.getLine())
+            case Some(v):
+                return v
+        }
+    }
+
+    public define parse: Json {
+        try: {
+            return value()
+        except ParseError as pe:
+            pe.printError()
+        }
+
+        return Json._Null
+    }
+}
+
+#[
+    ------------------------------------------
+            Convenience Functions
+    -------------------------------------------
+]#
+
+# decode a string into a json value
+define decode(source: String): Json {
+    var lxr = Lexer(source)
+    var tokens = lxr.lex()
+    if lxr.hadError(): {
+        print("Decode terminating.")
+    }
+    var psr = Parser(tokens)
+    return psr.parse()
+}
+
+# encode a json value into a string
+define encode(source: Json): String {
+    match source: {
+        case _Null:
+            return "null"
+        case _Bool(b):
+            return "\""++b++"\""
+        case _Int(i):
+            return "{0}".format(i)
+        case _Float(d):
+            return "{0}".format(d)
+        case _String(s):
+            return "\""++s++"\""
+        case _Assoc(alist):
+            var full = "{"
+            var keys = alist.keys()
+            for i in 0...keys.size() - 1: {
+                full = full ++ "\"{0}\": ".format(keys[i])
+                full = full ++ encode(alist[keys[i]])
+                if i < keys.size() - 1: {
+                    full = full ++ ","
+                }
+            }
+            full = full ++ "}"
+            return full
+        case _List(list):
+            var full = "["
+            for i in 0...list.size() - 1: {
+                full = full ++ encode(list[i])
+                if i < list.size() - 1: {
+                    full = full ++ ","
+                }
+            }
+            full = full ++ "]"
+            return full
+    }
+}
