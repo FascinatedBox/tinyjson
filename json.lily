@@ -119,9 +119,10 @@ define toBool(j: Json): Boolean {
     raise JsonError("Tried to convert non-bool value into a Boolean.")
 }
 
-# convert a json value list into a lily list of integers
+# filter integer values from a list of json values
 define filterInt(j: List[Json]): List[Integer] {
     return j.select(|val|
+    	# filter all values that are integers
         var ret = false
         match val: {
             case _Int(i): ret = true
@@ -129,6 +130,7 @@ define filterInt(j: List[Json]): List[Integer] {
         }
         ret
     ).map(|val|
+    	# map them to lily integers
         var ret = 0
         match val: {
             case _Int(i): ret = i
@@ -138,9 +140,10 @@ define filterInt(j: List[Json]): List[Integer] {
     )
 }
 
-# convert a json value list into a lily list of doubles
+# filter float values from a list of json values
 define filterFloat(j: List[Json]): List[Double] {
     return j.select(|val|
+    	# filter all values that are floats
         var ret = false
         match val: {
             case _Float(f): ret = true
@@ -148,6 +151,7 @@ define filterFloat(j: List[Json]): List[Double] {
         }
         ret
     ).map(|val|
+    	# map them to lily doubles
         var ret = 0.0
         match val: {
             case _Float(f): ret = f
@@ -157,9 +161,10 @@ define filterFloat(j: List[Json]): List[Double] {
     )
 }
 
-# convert a json value list into a lily list of strings
+# filter string values from a list of json values
 define filterString(j: List[Json]): List[String] {
     return j.select(|val|
+    	# filter all values that are strings
         var ret = false
         match val: {
             case _String(s): ret = true
@@ -167,6 +172,7 @@ define filterString(j: List[Json]): List[String] {
         }
         ret
     ).map(|val|
+    	# map them to a list of lily strings
         var ret = ""
         match val: {
             case _String(s): ret = s
@@ -176,9 +182,10 @@ define filterString(j: List[Json]): List[String] {
     )
 }
 
-# convert a json value list into a lily list of booleans
+# filter boolean values from a list of json values
 define filterBool(j: List[Json]): List[Boolean] {
     return j.select(|val|
+    	# filter all values that are booleans
         var ret = false
         match val: {
             case _Bool(b): ret = true
@@ -186,9 +193,33 @@ define filterBool(j: List[Json]): List[Boolean] {
         }
         ret
     ).map(|val|
+	    # map them to a list of lily boolean values
         var ret = false
         match val: {
             case _Bool(b): ret = b
+            else: # this should never happen because of select
+        }
+        ret
+    )
+}
+
+# filter a list of json values to a list of values that include the given member
+define filterMember(mem: String, j: List[Json]): List[Json] {
+	return j.select(|val|
+        var ret = false
+        match val: {
+        	# filter all objects with the member 'mem' in them
+            case _Assoc(assoc):
+            	if assoc.has_key(mem): {ret = true}
+            else:
+        }
+        ret
+    ).map(|val|
+    	# map the values filtered to the json value that corresponds to
+    	# the member 'mem'
+        var ret = Json._Null
+        match val: {
+            case _Assoc(assoc): ret = assoc[mem]
             else: # this should never happen because of select
         }
         ret
