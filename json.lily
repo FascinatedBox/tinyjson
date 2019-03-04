@@ -341,7 +341,7 @@ class Lexer(source: String) {
 
     # return true if @current has reached the end of the source string
     private define isAtEnd: Boolean {
-        return @current == @source.size()
+        return @current >= @source.size()
     }
 
     # advance the current position and return the character
@@ -379,17 +379,14 @@ class Lexer(source: String) {
 
         var tmpLine = @line
 
-        while peek() != "\"": {
-            advance()
+        while !matchChar("\""): {
             if isAtEnd(): {
-                LexError("Unterminated string", tmpLine)
+                raise LexError("Unterminated string", tmpLine)
             elif matchChar("\n"):
                 @line += 1
             }
+            advance()
         }
-
-        # consume the last "
-        matchChar("\"")
 
         # strip the quotes
         var s = @source.slice(@start+1, @current - 1)
@@ -595,11 +592,11 @@ class Parser(toklist: List[Token]) {
         match str.getType(): {
             case string(s):
             if !matchTokens([colon]): {
-                raise ParseError("Exptected ':', got "++peek().getType(), peek().getLine())
+                raise ParseError("Expected ':', got "++peek().getType(), peek().getLine())
             }
                 return [s => value()]
             else:
-                raise ParseError("Exptected string, got "++str.getType(), peek().getLine())
+                raise ParseError("Expected string, got "++str.getType(), peek().getLine())
         }
     }
 
@@ -714,9 +711,11 @@ define decode(source: String): Json {
     var tokens = lxr.lex()
     if lxr.hadError(): {
         print("Decode terminating.")
+        return Json._Null
+    else:
+        var psr = Parser(tokens)
+        return psr.parse()
     }
-    var psr = Parser(tokens)
-    return psr.parse()
 }
 
 # encode a json value into a string
