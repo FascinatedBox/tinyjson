@@ -64,11 +64,11 @@ var j = json.decode("{\"foo\": \"bar\", \"nums\": [1,2,3]}")
 var s = json.encode(json.Json._Assoc(["foo" => json.Json._String("bar")]))
 
 try: {
-    var val = json.member(j, "foo")
+    var str = json.member(j, "foo")
     json.printJson(val)
     print("")
 
-    var val = json.member(j, "nums")
+    var numbers = json.member(j, "nums")
     json.filterInt(json.toList(val)).each(|num| print(num))
 
 except json.JsonError as je:
