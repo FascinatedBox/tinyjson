@@ -65,11 +65,11 @@ var s = json.encode(json.Json._Assoc(["foo" => json.Json._String("bar")]))
 
 try: {
     var str = json.member(j, "foo")
-    json.printJson(val)
+    json.printJson(str)
     print("")
 
     var numbers = json.member(j, "nums")
-    json.filterInt(json.toList(val)).each(|num| print(num))
+    json.filterInt(json.toList(numbers)).each(|num| print(num))
 
 except json.JsonError as je:
     je.printError()
