@@ -213,7 +213,7 @@ define filterBool(j: List[Json]): List[Boolean] {
     )
 }
 
-# filter a list of json values to a list of values that include the given member
+# filter a list of json values to a list of values that the given member maps to
 define filterMember(j: List[Json], mem: String): List[Json] {
 	return j.select(|val|
         var ret = false

@@ -32,6 +32,9 @@ define toInt/String/Float/Bool(Json): Integer/String/Double/Boolean {...}
 # convert a json value list into a list of lily values
 define filterInt/String/Float/Bool(List[Json]): List[Integer/String/Double/Boolean] {...}
 
+# filter a list of json values to a list of values that the given member maps to
+define filterMember(j: List[Json], mem: String): List[Json]
+
 # print out a json value
 define printJson(Json) {...}
 
@@ -65,11 +68,6 @@ try: {
     json.printJson(val)
     print("")
 
-except json.JsonError as je:
-    je.printError()
-}
-
-try: {
     var val = json.member(j, "nums")
     json.filterInt(json.toList(val)).each(|num| print(num))
 
