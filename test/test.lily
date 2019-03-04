@@ -1,0 +1,117 @@
+#[
+	test.lily
+
+	test functionality of the json module
+	included json test file is from: https://json.org/example.html
+]#
+
+import json
+
+# test the output for various test functions
+define test(name: String, fn: Function(=> Boolean)) {
+	if fn(): {
+		print("Test [{0}] - PASSED".format(name))
+	else:
+		print("Test [{0}] - FAILED".format(name))
+	}
+}
+
+# test looking for members
+define memberTest(j: json.Json): Function(=>Boolean) {
+	return (||
+		var ret = true
+
+		try: {
+			var val = json.member(json.member(j, "widget"), "debug")
+			ret = json.toString(val) == "on"
+		except json.JsonError as je:
+			je.printError()
+			ret = false
+		except KeyError:
+			print("key doesn't exist in json value given.")
+			ret = false
+		}
+		ret
+	)
+}
+
+# test converting json values to lily values
+define conversionTest(j: json.Json): Function(=>Boolean) {
+	return (||
+		var ret = true
+
+		try: {
+			var val = json.member(json.member(j, "widget"), "window")
+			ret = json.toString(json.member(val, "name")) == "main_window"
+			ret = ret && json.toInt(json.member(val, "width")) == 500
+			ret = ret && json.toFloat(json.member(val, "height")) == 500.0
+			ret = ret && json.toBool(json.member(val, "fullscreen")) == false
+		except json.JsonError as je:
+			je.printError()
+			ret = false
+		except KeyError:
+			print("key doesn't exist in json value given.")
+			ret = false
+		}
+		ret
+	)
+}
+
+# test filtering
+define filterTest(j: json.Json): Function(=>Boolean) {
+	return (||
+		var ret = true
+
+		try: {
+			var val = json.toList(json.member(json.member(json.member(j, "widget"), "text"), "data"))
+			ret = json.filterString(val) == ["Click Here", "Or Here"]
+			ret = ret && json.filterInt(val) == [24, 2]
+			ret = ret && json.filterFloat(val) == [35.67]
+			ret = ret && json.filterBool(val) == [true]
+		except json.JsonError as je:
+			je.printError()
+			ret = false
+		except KeyError:
+			print("key doesn't exist in json value given.")
+			ret = false
+		}
+		ret
+	)
+}
+
+# test filtering members
+define filterMemTest(j: json.Json): Function(=>Boolean) {
+	return (||
+		var ret = true
+
+		try: {
+			var val = json.member(json.member(j, "widget"), "stuff") |> json.toList
+			ret = (json.filterMember(val, "name") |> json.filterString) == ["John", "Alice", "Bob"] 
+		except json.JsonError as je:
+			je.printError()
+			ret = false
+		except KeyError:
+			print("key doesn't exist in json value given.")
+			ret = false
+		}
+		ret
+	)
+}
+
+# open the test json file and run a series of tests on it
+var fp = File.open("test.json", "r")
+var txt = fp.read().encode()
+
+match txt: {
+	case Some(source):
+		var j = json.decode(source)
+
+		test("Member Test", memberTest(j))
+		test("Conversion Test", conversionTest(j))
+		test("Filter Test", filterTest(j))
+		test("Filter Member Test", filterMemTest(j))
+	case None:
+		print("Failed to read in json file.")
+}
+
+fp.close()

@@ -68,6 +68,16 @@ define member(j: Json, key: String): Json {
     raise JsonError("Tried to find member: "++ key++" in non-assocation value.")
 }
 
+# check to see if a json object has a value associated with 'key'
+define hasMember(key: String, j: Json): Boolean {
+	match j: {
+		case _Assoc(assocList):
+			return assocList.has_key(key)
+		else:
+	}
+	raise JsonError("Tried to find member: "++ key++" in non-assocation value.")
+}
+
 # convert a json list value into a lily list
 define toList(j: Json): List[Json] {
     match j: {
@@ -204,7 +214,7 @@ define filterBool(j: List[Json]): List[Boolean] {
 }
 
 # filter a list of json values to a list of values that include the given member
-define filterMember(mem: String, j: List[Json]): List[Json] {
+define filterMember(j: List[Json], mem: String): List[Json] {
 	return j.select(|val|
         var ret = false
         match val: {
