@@ -1,0 +1,7 @@
+{
+    "version": "v0.1.0",
+    "summary": "Parse JSON source in Lily.",
+    "source": "https://github.com/Zhorander/tinyjson",
+    "license": "MIT",
+    "requirements": []
+}
