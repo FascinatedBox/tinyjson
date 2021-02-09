@@ -46,6 +46,7 @@ define conversionTest(j: json.Json): Function(=>Boolean) {
 			ret = ret && json.toInt(json.member(val, "width")) == 500
 			ret = ret && json.toFloat(json.member(val, "height")) == 500.0
 			ret = ret && json.toBool(json.member(val, "fullscreen")) == false
+			ret = ret && json.toBool(json.member(val, "windowed")) == true
 		except json.JsonError as je:
 			je.printError()
 			ret = false

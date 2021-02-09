@@ -372,6 +372,34 @@ class Lexer(source: String) {
         @toks.push(Token(lexeme, type, line))
     }
 
+    private define captureFalse {
+        for i in 0...4: {
+            advance()
+        }
+
+        var name = @source.slice(@start, @current - 1)
+
+        if name != "false": {
+            raise LexError("Invalid constant", @line)
+        }
+
+        addToken(name, bool(false), @line)
+    }
+
+    private define captureTrue {
+        for i in 0...3: {
+            advance()
+        }
+
+        var name = @source.slice(@start, @current - 1)
+
+        if name != "true": {
+            raise LexError("Invalid constant", @line)
+        }
+
+        addToken(name, bool(true), @line)
+    }
+
     # match two pairs of quotes and capture everything inside
     private define captureString {
         # ignore "
@@ -475,6 +503,12 @@ class Lexer(source: String) {
         # capture a number
         elif c.is_digit():
             captureNumber()
+
+        elif c == "f":
+            captureFalse()
+
+        elif c == "t":
+            captureTrue()
 
         # a character that we don't know how to deal with
         else:

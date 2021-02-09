@@ -5,7 +5,8 @@
         "name": "main_window",
         "width": 500,
         "height": 500.0,
-        "fullscreen": "false"
+        "fullscreen": false,
+        "windowed": true
     },
     "image": { 
         "src": "Images/Sun.png",
