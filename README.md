@@ -22,6 +22,9 @@ There are some convenience functions defined to make dealing with the tree struc
 # find the json value associated with a key in an association value
 define member(Json, String): Json
 
+# convert a json hash value into a lily hash
+define toHash(Json): Hash[String, Json]
+
 # convert a json list value into a lily list
 define toList(Json): List[Json]
 

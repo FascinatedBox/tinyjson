@@ -78,6 +78,16 @@ define hasMember(key: String, j: Json): Boolean {
 	raise JsonError("Tried to find member: "++ key++" in non-assocation value.")
 }
 
+# convert a json hash value into a lily hash
+define toHash(j: Json): Hash[String, Json] {
+    match j: {
+        case _Assoc(assoc):
+            return assoc
+        else:
+    }
+    raise JsonError("Tried to make non-hash value a hash.")
+}
+
 # convert a json list value into a lily list
 define toList(j: Json): List[Json] {
     match j: {
